@@ -1,4 +1,4 @@
-Specimen,Shoe Brand,Model,Iteration,shoe gender,EU Size,Retired SA 1,Retired SA 2,Retired SA 3,Retired SA 4,Retired SA 5,Avg Retired SA,Retired Stack Height (mm)
+Specimen,Shoe_Brand,Model,Iteration,Gender,Size,Retired_SA_1,Retired_SA_2,Retired_SA_3,Retired_SA_4,Retired_SA_5,Avg_Retired_SA,Retired_Stack_Height
 S01,New Balance,Vongo,,,,14.5,20,11,17.5,16.5,15.9,22.1
 S02,Hoka,Clifton,9,,,19.5,15.5,18,14,16,16.6,25
 S03,Hoka,Clifton,9,,,17.5,19,18.5,20.5,17,18.5,21.7
