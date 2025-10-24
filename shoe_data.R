@@ -1,8 +1,12 @@
 # Get Experimental Data
-df_shoes = read.csv("Shoe_Data - Experimental.csv")
+df_shoes = read.csv("Shoe_Data - Experimental (1).csv")
+
+# Get Source Data
+df_ref = read.csv("Shoe_Data - RunRepeat (1).csv")
 
 # Keep only shoes with measured data
 df_shoes = df_shoes[complete.cases(df_shoes[, c("Avg_Retired_SA")]), ]
+df_ref = df_ref[complete.cases(df_ref[, c("New_SA")]), ]
 
 # Get process control functions
 source("functions_process_control.R")
