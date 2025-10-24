@@ -20,3 +20,14 @@ df_SA <- data.frame(specimen = vec_names,shore_hardness = vec)
 
 # Create standard deviation chart
 ggs(df_SA$specimen,df_SA$shore_hardness,xlab="Specimen")
+
+# Save to Github
+credentials::set_github_pat()
+
+gert::git_add(dir(all.files = TRUE)) # select any and all new files created or edited to be 'staged'
+
+# 'staged' files are to be saved anew on GitHub 
+
+gert::git_commit_all("my first commit") # save your record of file edits - called a commit
+
+gert::git_push() # push your commit to GitHub
