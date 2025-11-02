@@ -122,13 +122,15 @@ plot(fit_gamma)
 annualcost = 354.1
 
 ### Define failure function for gamma distribution
-f = function(t, k, lambda){
+F = function(t, k, lambda){
   n = seq(from = 0, to = k - 1)
   1 - sum( (lambda*t)^n / factorial(n)  * exp(-lambda*t) )
 }
 
 ### calculate mean time (mileage) to fail
-mttf = fit_gamma$estimate[1] / fit_gamma$estimate[2]
+mttf = unname(fit_gamma$estimate[1]) / unname(fit_gamma$estimate[2])
+
+
 
 gert::git_commit_all("my first commit") # save your record of file edits - called a commit
 
