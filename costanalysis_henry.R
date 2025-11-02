@@ -23,7 +23,7 @@ gert::git_push() # push your commit to GitHub
 install.packages("dplyr")
 install.packages("readr")
 install.packages("ggplot2")
-
+install.packages("ggpubr")
 library(dplyr)
 library(readr)
 source("functions_process_control.R")
