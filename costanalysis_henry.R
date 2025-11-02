@@ -116,6 +116,19 @@ library(fitdistrplus)
 
 fit_gamma <- fitdist(abs(df_shoes$miles), distr = 'gamma', method = 'mle')
 
+plot(fit_gamma)
+
+### Make annual cost curve
+annualcost = 354.1
+
+### Define failure function for gamma distribution
+f = function(t, k, lambda){
+  n = seq(from = 0, to = k - 1)
+  1 - sum( (lambda*t)^n / factorial(n)  * exp(-lambda*t) )
+}
+
+### calculate mean time (mileage) to fail
+mttf = fit_gamma$estimate[1] / fit_gamma$estimate[2]
 
 gert::git_commit_all("my first commit") # save your record of file edits - called a commit
 
