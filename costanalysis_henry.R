@@ -70,7 +70,7 @@ stride = 1.25 # m
 df_shoes = read.csv("Shoe_Data - Experiment.csv")
 
 # Get Source Data
-df_ref = read.csv("Shoe_Data - RunRepeat (1).csv")
+df_ref = read.csv("Shoe_Data - RunRepeat (2).csv")
 
 
 ### Make Data Workable
@@ -134,7 +134,10 @@ F = function(t, k, lambda){
 ### calculate mean time (mileage) to fail
 mttf = k / lambda 
 
+### Probability of getting extra mileage
+P_extra = 1 - F(mttf, k, lambda)
 
+### Convert mileage to time
 
 gert::git_commit_all("my first commit") # save your record of file edits - called a commit
 
