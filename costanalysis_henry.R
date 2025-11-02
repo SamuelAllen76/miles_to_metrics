@@ -21,6 +21,7 @@ gert::git_push() # push your commit to GitHub
 # Get process control functions
 
 install.packages("dplyr")
+install.packages("readr")
 library(dplyr)
 library(readr)
 source("functions_process_control.R")
