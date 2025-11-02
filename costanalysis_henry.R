@@ -70,7 +70,7 @@ stride = 1.25 # m
 df_shoes = read.csv("Shoe_Data - Experiment.csv")
 
 # Get Source Data
-df_ref = read.csv("Shoe_Data - RunRepeat (2).csv")
+df_ref = read.csv("Shoe_Data - RunRepeat (1).csv")
 
 
 ### Make Data Workable
