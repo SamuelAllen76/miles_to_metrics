@@ -19,6 +19,9 @@ gert::git_push() # push your commit to GitHub
 ### Get Functions and Packages
 
 # Get process control functions
+
+install.
+library(dplyr)
 source("functions_process_control.R")
 
 # Get Experimental Data
@@ -26,3 +29,4 @@ df_shoes = read.csv("Shoe_Data - Experiment.csv")
 
 # Get Source Data
 df_ref = read.csv("Shoe_Data - RunRepeat (1).csv")
+
