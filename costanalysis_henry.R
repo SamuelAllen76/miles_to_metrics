@@ -111,10 +111,10 @@ df_shoes = df_shoes %>% mutate(
 )
 
 ### Fit mileage data to gamma distribution
-install.packages("fitdistrplus")
+#install.packages("fitdistrplus")
 library(fitdistrplus)
 
-
+fit_gamma <- fitdist(abs(df_shoes$miles), distr = 'gamma', method = 'mle')
 
 
 gert::git_commit_all("my first commit") # save your record of file edits - called a commit
