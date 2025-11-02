@@ -110,11 +110,11 @@ df_shoes = df_shoes %>% mutate(
   miles = get_cycles(df_shoes$rho_shoes,R_E)*2*stride/1609
 )
 
+### Fit mileage data to gamma distribution
+install.packages("fitdistrplus")
+library(fitdistrplus)
 
-### Visualize
 
-# Create standard deviation chart
-ggs(df_SA$specimen,df_SA$shore_hardness,xlab="Specimen")
 
 
 gert::git_commit_all("my first commit") # save your record of file edits - called a commit
