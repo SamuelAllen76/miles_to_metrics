@@ -118,6 +118,10 @@ fit_gamma <- fitdist(abs(df_shoes$miles), distr = 'gamma', method = 'mle')
 
 plot(fit_gamma)
 
+### shape and rate factors of gamma distribution
+k = unname(fit_gamma$estimate[1])
+lambda = unname(fit_gamma$estimate[2])
+
 ### Make annual cost curve
 annualcost = 354.1
 
@@ -128,7 +132,7 @@ F = function(t, k, lambda){
 }
 
 ### calculate mean time (mileage) to fail
-mttf = unname(fit_gamma$estimate[1]) / unname(fit_gamma$estimate[2])
+mttf = k / lambda 
 
 
 
