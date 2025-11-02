@@ -20,14 +20,17 @@ gert::git_push() # push your commit to GitHub
 
 # Get process control functions
 
-install.packages("dplyr")
-install.packages("readr")
-install.packages("ggplot2")
-install.packages("ggpubr")
-install.packages("moments")
+#install.packages("dplyr")
+#install.packages("readr")
+#install.packages("ggplot2")
+#install.packages("ggpubr")
+#install.packages("moments")
 
 library(dplyr)
 library(readr)
+library(ggplot2)
+library(ggpubr)
+library(moments)
 source("functions_process_control.R")
 
 # Get Experimental Data
