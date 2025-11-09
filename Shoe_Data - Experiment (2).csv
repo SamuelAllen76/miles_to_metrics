@@ -1,0 +1,28 @@
+Specimen,Shoe_Brand,Model,Iteration,Gender,Size,Retired_SA_1,Retired_SA_2,Retired_SA_3,Retired_SA_4,Retired_SA_5,Avg_Retired_SA,Retired_Stack_Height
+S01,New Balance,Vongo,,,,11,10,11,11,11.5,10.9,22.1
+S02,Hoka,Clifton,9,,,17,17,19,18,18.5,17.9,25
+S03,Hoka,Clifton,9,,,17,17.5,18.5,17,19,17.8,21.7
+S04,Nike,Streakfly,,,,10,10.5,9.5,10.5,10.5,10.2,20.7
+S05,Nike,Pegasus,39,,,14.5,12.5,13.5,15,14.5,14,
+S06,Nike,Streakfly,,,,10,9.5,9,10,10,9.7,21.2
+S07,Nike,Vaporfly,3,,,15,14.5,13.5,15,14.5,14.5,26.5
+S08,Nike,React Infinity Run FK,3,,,17.5,16.5,17,18,17.5,17.3,26
+S09,Asics,Novablast,,,,11.5,11,10.5,10,11,10.8,27.4
+S10,Nike,Invincible Run,3,,,11,10,10,9.5,10,10.1,
+S11,Nike,Pegasus,40,,,11,12.5,13.5,13,12.5,12.5,22.3
+S12,Nike,Pegasus,40,,,13.5,12.5,12.5,14,14,13.3,
+S13,Nike,Pegasus,40,,,17.5,16,17,15,17,16.5,24
+S14,Nike,React,,,,17.5,18.5,17.5,19.5,18.5,18.3,24.4
+S15,Nike,Invincible Run,3,,,11.5,11.5,10.5,11,11.5,11.2,31.8
+S16,Nike,Alphafly,2,,44.5,15.5,15,14.5,13.5,14.5,14.6,32
+S17,Nike,Vaporfly,,,41,17,16,15.5,16,16,16.1,36.8
+S18,Brooks,Ghost,16,,42,13.5,13.5,13.5,12,13,13.1,25.7
+S19,Brooks,Ghost,16,,42,14.5,12,13.5,12.5,12.5,13,25.9
+S20,New Balance,880,14,,43,13.5,12,12,11.5,11,12,18
+S21,New Balance,880,13,,,12,12,12,11.5,12,11.9,
+S22,New Balance,880,14,,43,13.5,12.5,13.5,12,13,12.9,15.7
+S23,Hoka,Clifton,8,,,18,19,19,18,17.5,18.3,
+S24,Brooks,Ghost,16,,,16,15.5,14,15.5,15,15.2,
+S25,Brooks,Ghost,15,,,18,19,18,16.5,17,17.7,
+S26,hoka,clifton,9,,,16,16,14.5,15,14.5,15.2,
+S27,brooks,launch gts,10,,,19.5,20.5,19.5,21.5,20,20.2,
