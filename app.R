@@ -32,6 +32,7 @@ E_eva <- 18 # MPa (Reference for Young's Modulus)
 stride <- 1.25 # m (Average stride length for cycles to miles)
 y_int <- 0.304 # Constant from Empirical Curve
 customer_target <- 400 # Customer Requirement
+all_brands <- c("Brooks", "Hoka", "New Balance", "Nike")
 
 # Combine and Process Data
 mileage_data_calculated <- inner_join(df_shoes_raw, df_ref_raw, by = "Specimen", suffix = c(".retired", ".new")) %>%
@@ -78,7 +79,15 @@ ci_upper <- round(qoi_mean + error_margin)
 # Calculate brand means for UI display
 brand_means_data <- mileage_data %>%
   group_by(Shoe_Brand) %>%
-  summarise(Mean = round(mean(Mileage, na.rm = TRUE), 0)) %>%
+  summarise(
+    Mean = round(mean(Mileage, na.rm = TRUE), 0),
+    sd_mileage = sd(Mileage, na.rm = TRUE),
+    n = n(),
+    se_mileage = sd_mileage / sqrt(n),
+    error_margin = z_val_95 * se_mileage,
+    ci_lower = Mean - error_margin,
+    ci_upper = Mean + error_margin
+  ) %>%
   ungroup()
 
 # Summary Data (Means, SEM)
@@ -138,106 +147,269 @@ ui <- fluidPage(
       .poster-section { background-color: #ffffff; padding: 20px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08); }
       .brand-list { text-align: left; padding: 0 10px; margin-top: 10px; font-size: 0.9em; }
       .brand-item { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed #eee; }
+      .ci-status-good { color: #2e7d32; font-weight: 700; } /* Green */
+      .ci-status-bad { color: #c62828; font-weight: 700; }  /* Red */
+      .ci-status-warning { color: #f9a825; font-weight: 700; } /* Orange/Yellow */
     "))
   ),
   
   tags$div(class = "main-container", # Wraps content for max-width and centering
-           # --- Header ---
-           titlePanel(div(
-             h1("Miles to Metrics: Determining Shoe Retirement Mileage", style = "color: #0d47a1; font-weight: 700;"),
-             p("Six Sigma Project", style = "color: #607d8b;")
-           )),
+     # --- Header ---
+     titlePanel(div(
+       h1("Miles to Metrics: Determining Shoe Retirement Mileage", style = "color: #0d47a1; font-weight: 700;"),
+       p("Six Sigma Project", style = "color: #607d8b;")
+     )),
+     
+     # --- Poster Grid Layout (4 columns for the top narrative) ---
+     fluidRow(
+       # (1) Research Question
+       column(3, class = "poster-section",
+              tags$div(class = "panel-title", "1. Define & Measure"),
+              tags$ul(style = "list-style-type: disc;",
+                      tags$li("Research Question: What is the average useful life of a running shoe?"),
+                      tags$li("Measures: Shoe brand, mileage at retirement, and cost per mile "),
+                      tags$li(paste0("Sample Size: N=", n_obs, " retired shoes measured for Shore Hardness A.")),
+                      tags$li("Sampling: Varisty teams, club teams, friends, and family."),
+                      tags$li("Customer Target: 400 miles.")
+              )
+       ),
+       # (3) Method
+       column(3, class = "poster-section",
+              tags$div(class = "panel-title", "2. Analyze: Method"),
+              tags$ul(style = "list-style-type: disc;",
+                      tags$li("Mileage Estimation: Shore Hardness A => Young's Modulus => Mileage."),
+                      tags$li("Distribution: Weibull fit (p=0.108) used to estimate expected life."),
+                      tags$li("Statistical Test: One-way ANOVA and Tukey HSD for brand comparison."),
+                      tags$li("Confidence Intervals: Retirement mileage intervals estimated using the Weibull (overall) or Normal distributions (brand specific).")
+              )
+       ),
+       # (4) Quantity of Interest & CI Display
+       column(3,
+              tags$div(class = "metric-box",
+                       p("Overall Mean Useful Life", style = "font-size: 1.2em; color: #555;"),
+                       tags$span(class = "metric-value", paste0(qoi_mean, " mi")),
+                       p("Customer Requirement: ", tags$span(class = "customer-req", paste0(customer_target, " mi"))),
+                       tags$hr(),
+                       p("95% CI (Overall)", style = "font-size: 1.2em; color: #555;"),
+                       tags$p(class = "ci-text",
+                              paste0("[", ci_lower, " mi, ", ci_upper, " mi]")
+                       ),
+                       tags$hr(),
+                       p("Brand-Specific Mean Mileages", style = "font-size: 1.2em; color: #555;"),
+                       # Output the detailed brand means table
+                       uiOutput("brand_means_table")
+              )
+       ),
+       # (5) Discussion/Implications
+       column(3, class = "poster-section",
+              tags$div(class = "panel-title", "3. Improve / Control: Implications"),
+              tags$ul(style = "list-style-type: disc;",
+                      tags$li(paste0("Brooks (", brand_means_data[brand_means_data$Shoe_Brand == "Brooks", ]$Mean, " mi) is a positive outlier, skewing the overall mean.")),
+                      tags$li("Hoka, Nike, and New Balance fail the 400-mile customer requirement (CI passes below 400 mi)."),
+                      tags$li("Recommendation: These brands must increase average life by 124-197 miles."),
+                      tags$li("Financial: High cost/mile for underperforming brands leads to customer dissatisfaction.")
+              )
+       )
+     ),
+     
+     # --- Results Section (Plots) ---
+     fluidRow(
+       tags$div(class = "panel-title", style = "margin-left: 15px; font-size: 1.5em; border-bottom: none; color: #00897b;", "4. Results"),
+       
+       # Plot 1 (Distribution Analysis) - Weibull Fit
+       column(6, class = "poster-section",
+              tags$div(class = "panel-title", style="border-bottom: 2px solid #ddd;", "Overall Mileage Distribution (Weibull Fit)"),
+              plotOutput("plot_distribution", height = 550)
+       ),
+       
+       # Plot 2 (Factor Impact) - Mean Bar Plot with SEM and Significance
+       column(6, class = "poster-section",
+              tags$div(class = "panel-title", style="border-bottom: 2px solid #ddd;", "Brand-Specific Mileage Comparison"),
+              plotOutput("plot_brand_impact", height = 550)
+       )
+     ),
+     
+     # --- Interactive ---
+     # --- Top Row: Simulator, Analysis, Metrics, Implications ---
+     fluidRow(
+       # (1) Simulator Controls (Width 3)
+       column(3, class = "poster-section",
+              tags$div(class = "panel-title", "5. Improvement Simulator"),
+              tags$p("Select a brand and simulate improvement in midsole durability (mean mileage)."),
+              
+              selectInput("sim_brand", "Target Brand:", choices = all_brands, selected = "Hoka"),
+              
+              sliderInput("sim_mileage_increase", 
+                          "Simulated Mean Mileage Increase (mi):",
+                          min = 0, max = 500, value = 0, step = 10),
+              
+              tags$hr(),
+              tags$p(paste0("Current Customer Target: ", customer_target, " miles"))
+       ),
+       
+       # (2) Analysis & Simulation Results (Width 3)
+       column(3, class = "poster-section",
+              tags$div(class = "panel-title", "6. Simulated Results"),
+              tags$ul(style = "list-style-type: disc;",
+                      tags$li(tags$b("Base Mileage (Mean):"), textOutput("base_mean")),
+                      tags$li(tags$b("Simulated Mean Mileage:"), textOutput("sim_mean")),
+                      tags$li(tags$b("Initial Cost/Mile:"), textOutput("base_cost_per_mile")),
+                      tags$li(tags$b("Simulated Cost/Mile:"), textOutput("sim_cost_per_mile"))
+              )
+       ),
+       
+       # (3) CI Status & QoI (Increased Width to 4)
+       column(4,
+              tags$div(class = "metric-box",
+                       p("Simulated Mean Useful Life (QoI)", style = "font-size: 1.2em; color: #555;"),
+                       tags$span(class = "metric-value", textOutput("qoi_output_sim")),
+                       p("Target: ", tags$span(class = "customer-req", paste0(customer_target, " mi"))),
+                       tags$hr(),
+                       p("95% CI Status (Six Sigma Control)", style = "font-size: 1.2em; color: #555;"),
+                       # Conditional CI Output
+                       uiOutput("ci_status_output")
+              )
+       ),
+       
+       # (4) Discussion/Implications (Decreased Width to 2)
+       column(2, class = "poster-section",
+              tags$div(class = "panel-title", "6. Improvement Goal"),
+              tags$ul(style = "list-style-type: disc;",
+                      tags$li("Goal is achieved when the entire CI is above 400 mi."),
+                      tags$li("Control limits must be set for midsole degradation.")
+              )
+       ),
+     ),
            
-           # --- Poster Grid Layout (4 columns for the top narrative) ---
-           fluidRow(
-             # (1) Research Question
-             column(3, class = "poster-section",
-                    tags$div(class = "panel-title", "1. Define & Measure"),
-                    tags$ul(style = "list-style-type: disc;",
-                            tags$li("Research Question: What is the average useful life of a running shoe?"),
-                            tags$li("Measures: Shoe brand, mileage at retirement, and cost per mile "),
-                            tags$li(paste0("Sample Size: N=", n_obs, " retired shoes measured for Shore Hardness A.")),
-                            tags$li("Customer Target: 400 miles.")
-                    )
-             ),
-             # (3) Method
-             column(3, class = "poster-section",
-                    tags$div(class = "panel-title", "2. Analyze: Method"),
-                    tags$ul(style = "list-style-type: disc;",
-                            tags$li("Mileage Estimation: Shore Hardness A => Young's Modulus => Mileage."),
-                            tags$li("Distribution: Weibull fit (p=0.108) used to estimate expected life."),
-                            tags$li("Statistical Test: One-way ANOVA and Tukey HSD for brand comparison."),
-                            tags$li("Confidence Intervals: Retirement mileage intervals estimated using the Weibull (overall) or Normal distributions (brand specific).")
-                    )
-             ),
-             # (4) Quantity of Interest & CI Display
-             column(3,
-                    tags$div(class = "metric-box",
-                             p("Overall Mean Useful Life", style = "font-size: 1.2em; color: #555;"),
-                             tags$span(class = "metric-value", paste0(qoi_mean, " mi")),
-                             p("Customer Requirement: ", tags$span(class = "customer-req", paste0(customer_target, " mi"))),
-                             tags$hr(),
-                             p("95% CI (Overall)", style = "font-size: 1.2em; color: #555;"),
-                             tags$p(class = "ci-text",
-                                    paste0("[", ci_lower, " mi, ", ci_upper, " mi]")
-                             ),
-                             tags$hr(),
-                             p("Brand-Specific Mean Mileages", style = "font-size: 1.2em; color: #555;"),
-                             # Output the detailed brand means table
-                             uiOutput("brand_means_table")
-                    )
-             ),
-             # (5) Discussion/Implications
-             column(3, class = "poster-section",
-                    tags$div(class = "panel-title", "3. Improve / Control: Implications"),
-                    tags$ul(style = "list-style-type: disc;",
-                            tags$li(paste0("Brooks (", brand_means_data[brand_means_data$Shoe_Brand == "Brooks", ]$Mean, " mi) is a positive outlier, skewing the overall mean.")),
-                            tags$li("Hoka, Nike, and New Balance fail the 400-mile customer requirement (CI passes below 400 mi)."),
-                            tags$li("Recommendation: These brands must increase average life by 124-197 miles."),
-                            tags$li("Financial: High cost/mile for underperforming brands leads to customer dissatisfaction.")
-                    )
-             )
-           ),
-           
-           # --- Results Section (Plots) ---
-           fluidRow(
-             tags$div(class = "panel-title", style = "margin-left: 15px; font-size: 1.5em; border-bottom: none; color: #00897b;", "4. Results: Key Visualizations"),
-             
-             # Plot 1 (Distribution Analysis) - Weibull Fit
-             column(6, class = "poster-section",
-                    tags$div(class = "panel-title", style="border-bottom: 2px solid #ddd;", "Overall Mileage Distribution (Weibull Fit)"),
-                    plotOutput("plot_distribution", height = 550)
-             ),
-             
-             # Plot 2 (Factor Impact) - Mean Bar Plot with SEM and Significance
-             column(6, class = "poster-section",
-                    tags$div(class = "panel-title", style="border-bottom: 2px solid #ddd;", "Brand-Specific Mileage Comparison"),
-                    plotOutput("plot_brand_impact", height = 550)
-             )
-           ),
-           
-           # --- Data Sample Section ---
-           fluidRow(
-             column(12, class = "poster-section",
-                    tags$div(class = "panel-title", style="border-bottom: 2px solid #ddd;", "Data Sample (Inputs & Calculated Mileage)"),
-                    tableOutput("data_sample_table")
-             )
-           )
+     # --- Data Sample Section ---
+     fluidRow(
+       column(12, class = "poster-section",
+              tags$div(class = "panel-title", style="border-bottom: 2px solid #ddd;", "Data Sample (Inputs & Calculated Mileage)"),
+              tableOutput("data_sample_table")
+       )
+     )
   )
 )
 
 # --- 5. Shiny Server (Logic and Reactivity) ---
 server <- function(input, output) {
+  # Reactive Filtered Dataset (Only selected brand)
+  sim_data_base <- reactive({
+    mileage_data_calculated %>%
+      filter(Shoe_Brand == input$sim_brand)
+  })
+  
+  # Base metrics for the selected brand
+  base_metrics <- reactive({
+    data <- sim_data_base()
+    n <- nrow(data)
+    if (n < 2) return(NULL)
+    
+    mean_m <- mean(data$Mileage, na.rm = TRUE)
+    mean_cost <- mean(data$Cost, na.rm = TRUE)
+    sd_m <- sd(data$Mileage, na.rm = TRUE)
+    
+    list(mean=mean_m, sd=sd_m, cost=mean_cost)
+  })
+  
+  # Reactive Simulated Metrics
+  sim_metrics <- reactive({
+    base <- base_metrics()
+    if (is.null(base)) return(NULL)
+    
+    # 1. New Mean (Simulated QoI)
+    sim_qoi_mean <- base$mean + input$sim_mileage_increase
+    
+    # 2. CI Calculation (Assuming SD remains constant, which is conservative for Six Sigma)
+    n <- nrow(sim_data_base())
+    sd_obs <- base$sd 
+    se_obs <- sd_obs / sqrt(n)
+    z_val_95 <- qnorm(0.975)
+    error_margin <- z_val_95 * se_obs
+    
+    sim_ci_lower <- round(sim_qoi_mean - error_margin)
+    sim_ci_upper <- round(sim_qoi_mean + error_margin)
+    
+    # 3. Cost Per Mile
+    sim_cost_per_mile <- base$cost / sim_qoi_mean
+    
+    list(qoi=round(sim_qoi_mean), ci_l=sim_ci_lower, ci_u=sim_ci_upper, cpm=sim_cost_per_mile)
+  })
+  
+  # --- Output: Analysis & Simulation Results ---
+  output$base_mean <- renderText({
+    metrics <- base_metrics()
+    if (is.null(metrics)) return("N/A")
+    paste0(round(metrics$mean), " mi")
+  })
+  
+  output$sim_mean <- renderText({
+    metrics <- sim_metrics()
+    if (is.null(metrics)) return("N/A")
+    paste0(metrics$qoi, " mi")
+  })
+  
+  output$base_cost_per_mile <- renderText({
+    metrics <- base_metrics()
+    if (is.null(metrics)) return("N/A")
+    paste0("$", format(metrics$cost / metrics$mean, digits = 3), "/mi")
+  })
+  
+  output$sim_cost_per_mile <- renderText({
+    metrics <- sim_metrics()
+    if (is.null(metrics)) return("N/A")
+    paste0("$", format(metrics$cpm, digits = 3), "/mi")
+  })
+  
+  output$qoi_output_sim <- renderText({
+    metrics <- sim_metrics()
+    if (is.null(metrics)) return("N/A")
+    paste0(metrics$qoi, " mi")
+  })
+  
+  # --- Output: Conditional CI Status ---
+  output$ci_status_output <- renderUI({
+    metrics <- sim_metrics()
+    if (is.null(metrics)) {
+      return(tags$p(class = "ci-text", "Insufficient Data"))
+    }
+    
+    ci_text <- paste0("[", metrics$ci_l, " mi, ", metrics$ci_u, " mi]")
+    
+    # Logic for Conditional Coloring
+    if (metrics$ci_l >= customer_target) {
+      # GOOD: Entire CI is above 400 mi
+      status_class <- "ci-status-good"
+    } else if (metrics$ci_u < customer_target) {
+      # BAD: Entire CI is below 400 mi
+      status_class <- "ci-status-bad"
+    } else {
+      # WARNING: CI spans the 400 mi line
+      status_class <- "ci-status-warning"
+    }
+    
+    tagList(
+      tags$p(class = "ci-text", style="color:#455a64;", "95% Confidence Interval:"),
+      tags$p(class = status_class, ci_text)
+    )
+  })
   
   # --- Output: Brand Means Table (Metrics Box) ---
   output$brand_means_table <- renderUI({
     tagList(
       lapply(1:nrow(brand_means_data), function(i) {
         brand <- brand_means_data$Shoe_Brand[i]
-        mean_val <- brand_means_data$Mean[i]
+        mean_val <- round(brand_means_data$Mean[i])
+        ci_lower_val <- round(brand_means_data$ci_lower[i])
+        ci_upper_val <- round(brand_means_data$ci_upper[i])
+        
+        ci_text <- paste0("[", ci_lower_val, " - ", ci_upper_val, " mi]")
+        
         tags$p(class = "brand-item",
-               tags$span(style = paste0("color:", RColorBrewer::brewer.pal(4, "Set2")[i], ";"), brand),
-               tags$span(paste0(mean_val, " mi"))
+               tags$span(style = paste0("color:", RColorBrewer::brewer.pal(4, "Set2")[i], "; width: 35%; display: inline-block;"), tags$b(brand)),
+               # Right side: Mean and CI (in two lines)
+               tags$span(style = "width: 60%; display: inline-block; text-align: right; line-height: 1.1;", 
+                         tags$b(paste0(mean_val, " mi")), tags$br(), tags$small(ci_text))
         )
       })
     )
