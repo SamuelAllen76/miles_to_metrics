@@ -56,7 +56,13 @@ mileage_data_calculated <- inner_join(df_shoes_raw, df_ref_raw, by = "Specimen",
     Cycles = y_int * (R_E - 1) / slope,
     
     # 5. Cycles to Miles Conversion (* 2 * stride / 1609)
-    Mileage = round(Cycles * 2 * stride / 1609, 0)
+    Mileage = round(Cycles * 2 * stride / 1609, 0),
+    
+    # 6. Cost per mile
+    cost_mile = Cost/Mileage,
+    
+    #7. Cost per mile difference from standard
+    cost_mile_diff = Cost/Mileage-121.1/400
   ) %>%
   # Filter down to the 4 brands used in the ANOVA/CI sections of the report
   filter(Shoe_Brand %in% c("Brooks", "Hoka", "New Balance", "Nike"))
@@ -86,24 +92,51 @@ brand_means_data <- mileage_data %>%
     se_mileage = sd_mileage / sqrt(n),
     error_margin = z_val_95 * se_mileage,
     ci_lower = Mean - error_margin,
-    ci_upper = Mean + error_margin
+    ci_upper = Mean + error_margin,
+    Mean_cost = mean(cost_mile, na.rm = TRUE),
+    sd_cost = sd(cost_mile, na.rm = TRUE),
+    n_cost = n(),
+    se_cost = sd_cost / sqrt(n_cost),
+    error_margin_cost = z_val_95 * se_cost,
+    ci_lower_cost = Mean_cost - error_margin_cost,
+    ci_upper_cost = Mean_cost + error_margin_cost,
   ) %>%
   ungroup()
 
-# Summary Data (Means, SEM)
+# Summary Data (Means, SEM, cost)
 summary_df <- mileage_data %>%
   group_by(Shoe_Brand) %>%
   summarise(
     mean_mileage = mean(Mileage, na.rm = TRUE),
     sd_mileage = sd(Mileage, na.rm = TRUE),
     n = n(),
-    se_mileage = sd_mileage / sqrt(n)
+    se_mileage = sd_mileage / sqrt(n),
+    mean_cost = mean(cost_mile_diff, na.rm = TRUE),
+    sd_cost = sd(cost_mile_diff, na.rm = TRUE),
+    n_cost = n(),
+    se_cost = sd_cost / sqrt(n_cost)
   ) %>%
   ungroup()
 
 # Tukey HSD Significance Calculation
 aov_model <- aov(Mileage ~ Shoe_Brand, data = mileage_data)
 tukey_hsd_df <- TukeyHSD(aov_model)$Shoe_Brand %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "comparison") %>%
+  dplyr::select(comparison, `p adj`) %>%
+  mutate(
+    p_label = case_when(
+      `p adj` <= 0.001 ~ "***",
+      `p adj` <= 0.01 ~ "**",
+      `p adj` <= 0.05 ~ "*",
+      TRUE ~ "ns"
+    )
+  ) %>%
+  filter(grepl("Brooks", comparison))
+
+# Tukey HSD Significance Calculation for cost
+aov_model_cost <- aov(cost_mile_diff ~ Shoe_Brand, data = mileage_data)
+tukey_hsd_df_cost <- TukeyHSD(aov_model_cost)$Shoe_Brand %>%
   as.data.frame() %>%
   rownames_to_column(var = "comparison") %>%
   dplyr::select(comparison, `p adj`) %>%
@@ -167,7 +200,7 @@ ui <- fluidPage(
               tags$div(class = "panel-title", "1. Define & Measure"),
               tags$ul(style = "list-style-type: disc;",
                       tags$li("Research Question: What is the average useful life of a running shoe?"),
-                      tags$li("Measures: Shoe brand, mileage at retirement, and cost per mile "),
+                      tags$li("Quantity of Interest: Mileage at retirement and cost per mile"),
                       tags$li(paste0("Sample Size: N=", n_obs, " retired shoes measured for Shore Hardness A.")),
                       tags$li("Sampling: Varisty teams, club teams, friends, and family."),
                       tags$li("Customer Target: 400 miles.")
@@ -178,9 +211,10 @@ ui <- fluidPage(
               tags$div(class = "panel-title", "2. Analyze: Method"),
               tags$ul(style = "list-style-type: disc;",
                       tags$li("Mileage Estimation: Shore Hardness A => Young's Modulus => Mileage."),
+                      tags$li("Cost Estimation: Mileage Estimation divided by cost."),
                       tags$li("Distribution: Weibull fit (p=0.108) used to estimate expected life."),
-                      tags$li("Statistical Test: One-way ANOVA and Tukey HSD for brand comparison."),
-                      tags$li("Confidence Intervals: Retirement mileage intervals estimated using the Weibull (overall) or Normal distributions (brand specific).")
+                      tags$li("Statistical Test: One-way ANOVA and Tukey HSD for brand comparison of mileage and cost."),
+                      tags$li("Confidence Intervals: Retirement mileage intervals estimated using the Weibull (overall) or Normal distributions (brand specific). Brand specific cost intervals estimated using the Normal distribution.")
               )
        ),
        # (4) Quantity of Interest & CI Display
@@ -195,14 +229,14 @@ ui <- fluidPage(
                               paste0("[", ci_lower, " mi, ", ci_upper, " mi]")
                        ),
                        tags$hr(),
-                       p("Brand-Specific Mean Mileages", style = "font-size: 1.2em; color: #555;"),
+                       p("Brand-Specific Measures", style = "font-size: 1.2em; color: #555;"),
                        # Output the detailed brand means table
                        uiOutput("brand_means_table")
               )
        ),
        # (5) Discussion/Implications
        column(3, class = "poster-section",
-              tags$div(class = "panel-title", "3. Improve / Control: Implications"),
+              tags$div(class = "panel-title", "4. Improve / Control: Implications"),
               tags$ul(style = "list-style-type: disc;",
                       tags$li(paste0("Brooks (", brand_means_data[brand_means_data$Shoe_Brand == "Brooks", ]$Mean, " mi) is a positive outlier, skewing the overall mean.")),
                       tags$li("Hoka, Nike, and New Balance fail the 400-mile customer requirement (CI passes below 400 mi)."),
@@ -214,19 +248,21 @@ ui <- fluidPage(
      
      # --- Results Section (Plots) ---
      fluidRow(
-       tags$div(class = "panel-title", style = "margin-left: 15px; font-size: 1.5em; border-bottom: none; color: #00897b;", "4. Results"),
+       tags$div(class = "panel-title", style = "margin-left: 15px; font-size: 1.5em; border-bottom: none; color: #00897b;", "3. Results"),
        
-       # Plot 1 (Distribution Analysis) - Weibull Fit
-       column(6, class = "poster-section",
-              tags$div(class = "panel-title", style="border-bottom: 2px solid #ddd;", "Overall Mileage Distribution (Weibull Fit)"),
-              plotOutput("plot_distribution", height = 550)
-       ),
-       
-       # Plot 2 (Factor Impact) - Mean Bar Plot with SEM and Significance
+       # Plot 1 (Factor Impact) - Mean Bar Plot with SEM and Significance
        column(6, class = "poster-section",
               tags$div(class = "panel-title", style="border-bottom: 2px solid #ddd;", "Brand-Specific Mileage Comparison"),
               plotOutput("plot_brand_impact", height = 550)
+       ),
+       
+       # Plot 2 Financial Analysis
+       column(6, class = "poster-section",
+              tags$div(class = "panel-title", style="border-bottom: 2px solid #ddd;", "Brand-Specific Cost Comparison"),
+              plotOutput("plot_fin_data", height = 550)
        )
+       
+       
      ),
      
      # --- Interactive ---
@@ -249,7 +285,7 @@ ui <- fluidPage(
        
        # (2) Analysis & Simulation Results (Width 3)
        column(3, class = "poster-section",
-              tags$div(class = "panel-title", "6. Simulated Results"),
+              tags$div(class = "panel-title", "Simulated Results"),
               tags$ul(style = "list-style-type: disc;",
                       tags$li(tags$b("Base Mileage (Mean):"), textOutput("base_mean")),
                       tags$li(tags$b("Simulated Mean Mileage:"), textOutput("sim_mean")),
@@ -261,7 +297,7 @@ ui <- fluidPage(
        # (3) CI Status & QoI (Increased Width to 4)
        column(4,
               tags$div(class = "metric-box",
-                       p("Simulated Mean Useful Life (QoI)", style = "font-size: 1.2em; color: #555;"),
+                       p("Simulated Mean Useful Life", style = "font-size: 1.2em; color: #555;"),
                        tags$span(class = "metric-value", textOutput("qoi_output_sim")),
                        p("Target: ", tags$span(class = "customer-req", paste0(customer_target, " mi"))),
                        tags$hr(),
@@ -273,7 +309,7 @@ ui <- fluidPage(
        
        # (4) Discussion/Implications (Decreased Width to 2)
        column(2, class = "poster-section",
-              tags$div(class = "panel-title", "6. Improvement Goal"),
+              tags$div(class = "panel-title", "Improvement Goal"),
               tags$ul(style = "list-style-type: disc;",
                       tags$li("Goal is achieved when the entire CI is above 400 mi."),
                       tags$li("Control limits must be set for midsole degradation.")
@@ -402,14 +438,25 @@ server <- function(input, output) {
         mean_val <- round(brand_means_data$Mean[i])
         ci_lower_val <- round(brand_means_data$ci_lower[i])
         ci_upper_val <- round(brand_means_data$ci_upper[i])
+        mean_val_cost <- round(brand_means_data$Mean_cost[i],4)
+        ci_lower_val_cost <- round(brand_means_data$ci_lower_cost[i],4)
+        ci_upper_val_cost <- round(brand_means_data$ci_upper_cost[i],4)
         
         ci_text <- paste0("[", ci_lower_val, " - ", ci_upper_val, " mi]")
+        ci_text2 <- paste0("[$", ci_lower_val_cost, " - ", ci_upper_val_cost, "]")
         
         tags$p(class = "brand-item",
                tags$span(style = paste0("color:", RColorBrewer::brewer.pal(4, "Set2")[i], "; width: 35%; display: inline-block;"), tags$b(brand)),
                # Right side: Mean and CI (in two lines)
                tags$span(style = "width: 60%; display: inline-block; text-align: right; line-height: 1.1;", 
-                         tags$b(paste0(mean_val, " mi")), tags$br(), tags$small(ci_text))
+                         tags$b(paste0(mean_val, " mi")), 
+                         tags$br(), 
+                         tags$small(ci_text),
+                         tags$br(),
+                         tags$b(paste0("$",mean_val_cost)),
+                         tags$br(),
+                         tags$small(ci_text2)
+                         )
         )
       })
     )
@@ -420,45 +467,67 @@ server <- function(input, output) {
     data_sample
   }, align = 'c', striped = TRUE, hover = TRUE, bordered = TRUE)
   
-  # --- Output: Plot 1 (Distribution) ---
-  output$plot_distribution <- renderPlot({
-    # Calculate Weibull parameters (used to draw the theoretical curve)
-    fit_weib <- MASS::fitdistr(mileage_data$Mileage, "weibull")
-    shape <- fit_weib$estimate["shape"]
-    scale <- fit_weib$estimate["scale"]
+  # --- Output: Plot 1 (Financial Data) ---
+  output$plot_fin_data <- renderPlot({
+    summary <- summary_df # Use non-reactive variable
+    tukey_data <- tukey_hsd_df_cost # Use non-reactive variable
+    y_max <- max(mileage_data$cost_mile_diff) # For setting annotation height
     
-    # Calculate theoretical Weibull density
-    weibull_df <- data.frame(
-      x = seq(min(mileage_data$Mileage) * 0.9, max(mileage_data$Mileage) * 1.1, length.out = 500)
-    ) %>%
-      mutate(y = dweibull(x, shape = shape, scale = scale))
+    # 1. Base Plot (Bar, Errorbar, Jitter)
+    p <- ggplot(summary, aes(x = Shoe_Brand, y = mean_cost, fill = Shoe_Brand)) +
+      # Bar Plot (Mean)
+      geom_col(width = 0.5, alpha = 0.6) +
+      # Error Bars (SEM)
+      geom_errorbar(aes(ymin = mean_cost - se_cost, ymax = mean_cost + se_cost, color = Shoe_Brand),
+                    width = 0.2, linewidth = 1.2, alpha = 1) +
+      # Jittered data points for underlying distribution visibility
+      geom_jitter(data = mileage_data, aes(x = Shoe_Brand, y = cost_mile_diff, color = Shoe_Brand), width = 0.05, alpha = 0.8, size = 3) +
+      # Customer requirement line
+      geom_hline(yintercept = 0, linetype = "dashed", color = "#e53935", linewidth = 1) +
+      annotate("text", x = 1.2, y = 0.2, label = "Baseline cost of $0.303/mile", color = "#e53935", size = 5)
     
-    ggplot(mileage_data, aes(x = Mileage)) +
-      # Histogram of actual data
-      geom_histogram(aes(y = after_stat(density)), bins = 10, fill = "#a1d99b", color = "#00897b", alpha = 0.7) +
-      # Theoretical Weibull curve
-      geom_line(data = weibull_df, aes(x = x, y = y), color = "#0d47a1", linewidth = 1.5) +
-      # Mean line
-      geom_vline(xintercept = qoi_mean, linetype = "dashed", color = "#0d47a1", linewidth = 1) +
-      annotate("text", x = qoi_mean + 100, y = 0.002, label = paste("Overall Mean:", qoi_mean, "mi"), color = "#0d47a1", size = 5) +
-      # Customer target line
-      geom_vline(xintercept = customer_target, linetype = "dotted", color = "#e53935", linewidth = 1) +
-      annotate("text", x = customer_target - 100, y = 0.001, label = "Customer Target (400 mi)", color = "#e53935", size = 5) +
-      # Styling and Labels
+    # 2. Add Significance Annotations (Tukey HSD)
+    # The plot shows Brooks is significantly different from Hoka, New Balance, and Nike.
+    sig_comparisons <- list(
+      list(from = "Brooks", to = "Hoka", y_pos = 1, p_val = tukey_data$`p adj`[tukey_data$comparison == "Hoka-Brooks"]),
+      list(from = "Brooks", to = "Nike", y_pos = 1.5, p_val = tukey_data$`p adj`[tukey_data$comparison == "Nike-Brooks"]),
+      list(from = "Brooks", to = "New Balance", y_pos = 2, p_val = tukey_data$`p adj`[tukey_data$comparison == "New Balance-Brooks"])
+    )
+    
+    for (comp in sig_comparisons) {
+      if (comp$p_val < 0.05) {
+        p_label <- if (comp$p_val < 0.001) "***" else if (comp$p_val < 0.01) "**" else "*"
+        p <- p +
+          geom_segment(x = comp$from, xend = comp$from, y = comp$y_pos - 30, yend = comp$y_pos, color = "black") + # Vertical left
+          geom_segment(x = comp$from, xend = comp$to, y = comp$y_pos, yend = comp$y_pos, color = "black") + # Horizontal bar
+          geom_segment(x = comp$to, xend = comp$to, y = comp$y_pos - 30, yend = comp$y_pos, color = "black") + # Vertical right
+          annotate("text", x = mean(c(as.numeric(factor(comp$from, levels = unique(summary$Shoe_Brand))), as.numeric(factor(comp$to, levels = unique(summary$Shoe_Brand))))),
+                   y = comp$y_pos + 10, label = p_label, size = 6, fontface = "bold")
+      }
+    }
+    
+    
+    # 3. Final Styling
+    p +
       labs(
-        title = "Weibull Distribution Fit of Accumulated Mileage",
-        x = "Mileage at Retirement (Miles)",
-        y = "Density"
+        title = "Impact of Brand on Cost per Mile",
+        x = "",
+        y = "Difference from Baseline Cost per Mile ($/Mile)"
       ) +
+      scale_color_brewer(palette = "Set2") +
+      scale_fill_brewer(palette = "Set2") +
+      coord_cartesian(ylim = c(-0.4, 1.5)) + # Adjust Y-axis limit for readability
       theme_classic(base_size = 14) +
       theme(
         plot.title = element_text(face = "bold", size = 18),
+        axis.title = element_text(size = 16),
+        legend.position = "none",
         panel.background = element_rect(fill = "white"),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         axis.line = element_line(colour = "black")
       )
-  })
+  } )
   
   # --- Output: Plot 2 (Brand Impact Bar Plot) ---
   output$plot_brand_impact <- renderPlot({
